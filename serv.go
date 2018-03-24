@@ -13,55 +13,32 @@ import (
 
 func main() {
 	// Parameters from either the environment or the command line
-	cert := envFlag("cert", "certificate")
-	cred := envFlag("cred", "path to file with base64 encoded credentials (user:password)")
+	cert := envFlag("cert", "path to the certificate")
+	cred := envFlag("cred", "path or string with base64 encoded credentials (user:password)")
 	file := envFlag("file", "path to the file to serve")
-	key := envFlag("key", "key")
-	port := envFlag("port", "port to listen on")
+	key := envFlag("key", "path to the key")
+	port := envFlag("port", "port to listen on (defaults to 4554)")
 	flag.Parse()
 
-	// Make sure we have a valid credentials file
+	// Make sure we our required parameters
 	if *cred == "" {
 		errorf("missing the -cred flag or CRED environment variable")
 	}
-
-	// Read the contents of the file
-	data, err := ioutil.ReadFile(*cred)
-	if err != nil {
-		errorf("can't open credentials file, %v", err)
-	}
-
-	// Decode the input
-	credentials, err := base64.StdEncoding.DecodeString(string(data))
-	if err != nil {
-		errorf("can't decode the credentials, %v", err)
-	}
-
-	// Separate the user and password
-	parts := strings.Split(string(credentials), ":")
-	if len(parts) != 2 {
-		errorf("unexpected format for credentials, expected foo:bar")
-	}
-	user := parts[0]
-	password := parts[1]
-
-	// We need a certificate and a key
 	if *cert == "" {
 		errorf("missing the -cert flag or CERT environment variable")
 	}
 	if *key == "" {
 		errorf("missing the -key flag or KEY environment variable")
 	}
-
-	// We also need a file to serve on a successful request
 	if *file == "" {
 		errorf("missing the -file flag or FILE environment variable")
 	}
-
-	// Set the port to 4554 if we haven't specified anything
 	if *port == "" {
 		*port = "4554"
 	}
+
+	// Get basic auth credentials
+	user, password := getBasicAuthCredentials(*cred)
 
 	// Setup the one and only handler
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -107,4 +84,30 @@ func envFlag(key, description string) *string {
 		return &env
 	}
 	return flag.String(key, "", description)
+}
+
+// getBasicAuthCredentials gets the credentials from the src string.
+// src can be either a base64 encoded string or a file path.
+// If src is a path we expect the contents to be base64 encoded.
+func getBasicAuthCredentials(src string) (string, string) {
+	var encoded string
+
+	if _, err := os.Stat(src); err == nil {
+		tmp, _ := ioutil.ReadFile(src)
+		encoded = string(tmp)
+	} else {
+		encoded = src
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		errorf("doesn't look like we got a base64 encoded string, %v", err)
+	}
+
+	parts := strings.Split(string(decoded), ":")
+	if len(parts) != 2 {
+		errorf("unexpected format for credentials, expected foo:bar")
+	}
+
+	return parts[0], parts[1]
 }

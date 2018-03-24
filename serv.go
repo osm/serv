@@ -22,7 +22,7 @@ func main() {
 
 	// Make sure we have a valid credentials file
 	if *cred == "" {
-		errorf("missing the -cred flag")
+		errorf("missing the -cred flag or CRED environment variable")
 	}
 
 	// Read the contents of the file
@@ -47,15 +47,15 @@ func main() {
 
 	// We need a certificate and a key
 	if *cert == "" {
-		errorf("missing the -cert flag")
+		errorf("missing the -cert flag or CERT environment variable")
 	}
 	if *key == "" {
-		errorf("missing the -key flag")
+		errorf("missing the -key flag or KEY environment variable")
 	}
 
 	// We also need a file to serve on a successful request
 	if *file == "" {
-		errorf("missing the -file flag")
+		errorf("missing the -file flag or FILE environment variable")
 	}
 
 	// Set the port to 4554 if we haven't specified anything

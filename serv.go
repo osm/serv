@@ -12,11 +12,12 @@ import (
 )
 
 func main() {
-	cert := flag.String("cert", "", "certificate")
-	cred := flag.String("cred", "", "path to file with base64 encoded credentials (user:password)")
-	file := flag.String("file", "", "path to the file to serve")
-	key := flag.String("key", "", "key")
-	port := flag.Int("port", 4554, "port to listen on (1024 - 65535")
+	// Parameters from either the environment or the command line
+	cert := envFlag("cert", "certificate")
+	cred := envFlag("cred", "path to file with base64 encoded credentials (user:password)")
+	file := envFlag("file", "path to the file to serve")
+	key := envFlag("key", "key")
+	port := envFlag("port", "port to listen on")
 	flag.Parse()
 
 	// Make sure we have a valid credentials file
@@ -57,9 +58,9 @@ func main() {
 		errorf("missing the -file flag")
 	}
 
-	// And finally, we need to listen on a valid port
-	if *port <= 1024 || *port >= 65535 {
-		errorf("%v is not within the valid port range", *port)
+	// Set the port to 4554 if we haven't specified anything
+	if *port == "" {
+		*port = "4554"
 	}
 
 	// Setup the one and only handler
@@ -85,7 +86,7 @@ func main() {
 	})
 
 	// Start the server
-	if err := http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *cert, *key, nil); err != nil {
+	if err := http.ListenAndServeTLS(fmt.Sprintf(":%s", *port), *cert, *key, nil); err != nil {
 		errorf("can't start server, %v", err)
 	}
 }
@@ -98,4 +99,12 @@ func errorf(format string, args ...interface{}) {
 	}
 	fmt.Fprintf(os.Stderr, m)
 	os.Exit(1)
+}
+
+// envFlag reads the value from the environment or command line parameter
+func envFlag(key, description string) *string {
+	if env := os.Getenv(strings.ToUpper(key)); env != "" {
+		return &env
+	}
+	return flag.String(key, "", description)
 }
